@@ -1,0 +1,7 @@
+pythonnet>=3.0.0
+pywebview==5.3
+pandas
+openpyxl
+pymupdf
+pypdf
+reportlab

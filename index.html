@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генератор сертифікатів</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Custom Range Slider */
+        input[type=range] {
+            appearance: none;
+            -webkit-appearance: none;
+            background: transparent;
+            width: 100%;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 1rem;
+            width: 1rem;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            margin-top: -0.375rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+            border: 1px solid #e4e4e7;
+            transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 0.25rem;
+            cursor: pointer;
+            background: #3f3f46;
+            border-radius: 9999px;
+        }
+        input[type=range]:focus { outline: none; }
+        input[type=range]:focus::-webkit-slider-runnable-track { background: #52525b; }
+        
+        /* Custom Scrollbar for inner elements if needed */
+        ::-webkit-scrollbar { width: 0.375rem; height: 0.375rem; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+    </style>
+</head>
+<body class="bg-[#0a0a0a] text-zinc-400 font-sans h-screen w-screen flex flex-col overflow-hidden antialiased selection:bg-blue-500/30 selection:text-white" style="font-family: 'Inter', sans-serif;">
+
+    <input id="pdf-input" type="file" accept=".pdf,application/pdf" class="hidden">
+    <input id="excel-input" type="file" accept=".xlsx,.xls,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden">
+
+    <!-- Header -->
+    <header class="h-14 border-b border-zinc-800/60 bg-[#0a0a0a]/80 backdrop-blur flex items-center justify-between px-6 shrink-0 z-10">
+        <div class="flex items-center gap-3">
+            <div class="w-6 h-6 rounded bg-zinc-100 text-[#0a0a0a] flex items-center justify-center font-medium text-xs tracking-tighter">CG</div>
+            <h1 class="text-zinc-100 font-medium tracking-tight text-sm">Генератор сертифікатів</h1>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex overflow-hidden">
+        
+        <!-- Left Panel (40%) -->
+        <aside class="w-[35%] min-w-[320px] max-w-md border-r border-zinc-800/60 bg-[#0c0c0c] flex flex-col p-5 gap-5 z-0">
+            
+            <!-- PDF Upload Section -->
+            <div id="btn-pdf" class="flex-1 relative group rounded-2xl border border-dashed border-zinc-700/80 bg-zinc-900/20 hover:bg-zinc-900/50 hover:border-zinc-500 transition-all duration-300 cursor-pointer flex flex-col items-center justify-center p-6 text-center overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-b from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                
+                <div id="pdf-icon-wrapper" class="w-12 h-12 rounded-full bg-zinc-800/50 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-blue-500/10 transition-all duration-300">
+                    <iconify-icon id="pdf-icon" icon="solar:document-add-linear" class="text-2xl text-zinc-400 group-hover:text-blue-400 transition-colors"></iconify-icon>
+                </div>
+                
+                <h2 class="text-zinc-100 font-medium tracking-tight mb-1">Шаблон PDF</h2>
+                <p id="pdf-status" class="text-xs text-zinc-500 max-w-[80%] leading-relaxed">Натисніть або перетягніть файл для завантаження візуального шаблону</p>
+                
+                <div id="pdf-success" class="hidden mt-4 flex items-center gap-2 text-xs text-blue-400 bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-500/20">
+                    <iconify-icon icon="solar:check-circle-linear" class="text-sm"></iconify-icon>
+                    <span id="pdf-filename" class="truncate max-w-[150px]"></span>
+                </div>
+            </div>
+
+            <!-- Excel Upload Section -->
+            <div id="btn-excel" class="flex-1 relative group rounded-2xl border border-dashed border-zinc-700/80 bg-zinc-900/20 hover:bg-zinc-900/50 hover:border-zinc-500 transition-all duration-300 cursor-pointer flex flex-col items-center justify-center p-6 text-center overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-b from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+
+                <div id="excel-icon-wrapper" class="w-12 h-12 rounded-full bg-zinc-800/50 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-emerald-500/10 transition-all duration-300">
+                    <iconify-icon id="excel-icon" icon="solar:users-group-rounded-linear" class="text-2xl text-zinc-400 group-hover:text-emerald-400 transition-colors"></iconify-icon>
+                </div>
+                
+                <h2 class="text-zinc-100 font-medium tracking-tight mb-1">База студентів</h2>
+                <p id="excel-status" class="text-xs text-zinc-500 max-w-[80%] leading-relaxed">Завантажте таблицю Excel зі списком ПІБ отримувачів</p>
+                
+                <div id="excel-success" class="hidden mt-4 flex items-center gap-2 text-xs text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20">
+                    <iconify-icon icon="solar:users-group-two-rounded-linear" class="text-sm"></iconify-icon>
+                    <span id="excel-count"></span>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- Right Panel (65%) -->
+        <section class="flex-1 bg-[#0a0a0a] flex flex-col relative z-0">
+            
+            <!-- Toolbar -->
+            <div class="border-b border-zinc-800/60 flex items-center gap-4 px-6 py-3 bg-[#0c0c0c]/50 flex-wrap">
+
+                <!-- Font Size Control -->
+                <div class="flex items-center gap-3 w-52 shrink-0">
+                    <iconify-icon icon="solar:text-square-linear" class="text-zinc-500 text-lg shrink-0"></iconify-icon>
+                    <div class="flex-1 flex flex-col justify-center gap-1 pt-1">
+                        <div class="flex justify-between items-center px-0.5">
+                            <span class="text-xs text-zinc-500">Розмір</span>
+                            <span id="font-size-label" class="text-xs text-zinc-300 font-medium tracking-tight">2.5</span>
+                        </div>
+                        <input type="range" id="font-size-slider" min="1" max="6" step="0.1" value="2.5" class="w-full">
+                    </div>
+                </div>
+
+                <div class="w-px h-6 bg-zinc-800 shrink-0"></div>
+
+                <!-- Font Family -->
+                <div class="flex items-center gap-2 shrink-0">
+                    <iconify-icon icon="solar:text-field-focus-linear" class="text-zinc-500 text-lg shrink-0"></iconify-icon>
+                    <select id="font-select" class="bg-zinc-900 text-zinc-300 text-xs border border-zinc-700/60 rounded-lg px-2.5 py-1.5 outline-none focus:border-zinc-500 cursor-pointer">
+                        <option value="times-bold">Times NR Bold</option>
+                        <option value="times">Times NR Regular</option>
+                        <option value="arial">Arial</option>
+                        <option value="arial-bold">Arial Bold</option>
+                        <option value="calibri">Calibri</option>
+                        <option value="calibri-bold">Calibri Bold</option>
+                        <option value="georgia">Georgia</option>
+                        <option value="georgia-bold">Georgia Bold</option>
+                    </select>
+                </div>
+
+                <div class="w-px h-6 bg-zinc-800 shrink-0"></div>
+
+                <!-- Color Picker -->
+                <div class="flex items-center gap-2 shrink-0">
+                    <iconify-icon icon="solar:palette-linear" class="text-zinc-500 text-lg shrink-0"></iconify-icon>
+                    <label class="relative w-8 h-7 rounded-md overflow-hidden border border-zinc-700/60 cursor-pointer shrink-0 block" title="Піпетка / колірний круг">
+                        <input type="color" id="color-picker" value="#68313a" class="absolute opacity-0 w-full h-full cursor-pointer">
+                        <div id="color-swatch" class="absolute inset-0 pointer-events-none" style="background:#68313a;"></div>
+                    </label>
+                    <input type="text" id="color-hex" value="#68313a" placeholder="#000000" maxlength="7"
+                           class="bg-zinc-900 text-zinc-300 text-xs border border-zinc-700/60 rounded-lg px-2.5 py-1.5 outline-none focus:border-zinc-500 w-24 font-mono uppercase tracking-wider">
+                </div>
+
+                <div class="w-px h-6 bg-zinc-800 shrink-0"></div>
+
+                <!-- Center Buttons -->
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button id="btn-center-h" title="Центрувати горизонтально" class="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-400 hover:text-zinc-200 transition-all border border-zinc-700/60 hover:border-zinc-500">
+                        <iconify-icon icon="solar:align-horizontal-center-linear" class="text-base"></iconify-icon>
+                    </button>
+                    <button id="btn-center-v" title="Центрувати вертикально" class="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-400 hover:text-zinc-200 transition-all border border-zinc-700/60 hover:border-zinc-500">
+                        <iconify-icon icon="solar:align-vertical-center-linear" class="text-base"></iconify-icon>
+                    </button>
+                </div>
+
+                <div class="flex-1"></div>
+
+                <!-- Action Button -->
+                <button id="btn-generate" class="group relative px-5 py-2.5 bg-zinc-100 text-zinc-900 hover:bg-white rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.05)] hover:shadow-[0_0_25px_rgba(255,255,255,0.1)] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 overflow-hidden shrink-0">
+                    <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] opacity-0 group-hover:opacity-100" style="animation: shimmer 2s infinite linear;"></div>
+                    <style>@keyframes shimmer { 100% { transform: translateX(100%); } }</style>
+                    <iconify-icon icon="solar:magic-stick-3-linear" class="text-lg"></iconify-icon>
+                    Згенерувати
+                </button>
+            </div>
+
+            <!-- Preview Area -->
+            <div class="flex-1 p-6 flex items-center justify-center bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48L3N2Zz4=')]">
+                
+                <!-- Canvas Container (A4 Landscape Aspect Ratio) -->
+                <div id="preview-canvas" class="relative bg-zinc-900 border border-zinc-800 shadow-2xl rounded-sm w-full max-w-4xl aspect-[1.414] overflow-hidden flex items-center justify-center">
+                    
+                    <!-- Placeholder Background -->
+                    <div id="preview-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-zinc-700 pointer-events-none opacity-50">
+                        <iconify-icon icon="solar:gallery-linear" class="text-5xl mb-3"></iconify-icon>
+                        <span class="text-xs font-medium uppercase tracking-widest">Область попереднього перегляду</span>
+                    </div>
+
+                    <!-- Rendered Image Placeholder (Hidden initially, shown by Python) -->
+                    <img id="preview-image" class="absolute inset-0 w-full h-full object-contain hidden" src="" alt="Preview">
+                    <iframe id="preview-frame" class="absolute inset-0 w-full h-full hidden bg-white" title="PDF preview"></iframe>
+
+                    <!-- Draggable Text Element -->
+                    <div id="draggable-text" class="absolute cursor-move whitespace-nowrap px-3 py-1.5 rounded border border-transparent hover:border-zinc-500/50 hover:bg-zinc-800/30 transition-colors select-none z-10 origin-center" style="left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 2.5rem; font-family: 'Times New Roman', Times, serif; font-weight: bold; color: #68313a;">
+                        Ім'я Прізвище
+                    </div>
+
+                    <!-- Alignment Guides (Visual only during drag) -->
+                    <div id="guide-x" class="absolute left-0 right-0 h-[1px] bg-blue-500/30 hidden pointer-events-none"></div>
+                    <div id="guide-y" class="absolute top-0 bottom-0 w-[1px] bg-blue-500/30 hidden pointer-events-none"></div>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // PyWebView API Mock for browser testing
+        const browserState = {
+            pdfFile: null,
+            excelFile: null,
+            pdfObjectUrl: null
+        };
+
+        const browserApi = {
+            async uploadPdf(fileName, fileData) {
+                browserState.pdfFile = { fileName, fileData };
+                return { status: 'success', name: fileName };
+            },
+            async uploadExcel(fileName, fileData) {
+                browserState.excelFile = { fileName, fileData };
+                return { status: 'success', file: fileName, count: 0 };
+            },
+            async generateCertificates() {
+                return {
+                    status: 'error',
+                    message: 'Генерація доступна при запуску через main.py. У браузері завантаження працює, але Python-обробка недоступна.'
+                };
+            }
+        };
+
+        function getApi() {
+            return (window.pywebview && window.pywebview.api) ? window.pywebview.api : browserApi;
+        }
+        function isDesktopApp() {
+            return Boolean(window.pywebview && window.pywebview.api);
+        }
+
+        // --- UI Interactions ---
+
+        // 1. File Uploads
+        const btnPdf = document.getElementById('btn-pdf');
+        const pdfInput = document.getElementById('pdf-input');
+        const pdfStatus = document.getElementById('pdf-status');
+        const pdfSuccess = document.getElementById('pdf-success');
+        const pdfFilename = document.getElementById('pdf-filename');
+        const pdfIconWrapper = document.getElementById('pdf-icon-wrapper');
+        const previewImg = document.getElementById('preview-image');
+        const previewFrame = document.getElementById('preview-frame');
+        const previewPlaceholder = document.getElementById('preview-placeholder');
+
+        function resetPreview() {
+            previewImg.classList.add('hidden');
+            previewImg.src = '';
+            previewFrame.classList.add('hidden');
+            previewFrame.src = 'about:blank';
+            previewPlaceholder.classList.remove('hidden');
+
+            if (browserState.pdfObjectUrl) {
+                URL.revokeObjectURL(browserState.pdfObjectUrl);
+                browserState.pdfObjectUrl = null;
+            }
+        }
+
+        function showPreviewImage(imageSrc) {
+            previewImg.src = imageSrc;
+            previewImg.classList.remove('hidden');
+            previewFrame.classList.add('hidden');
+            previewPlaceholder.classList.add('hidden');
+        }
+
+        function showPreviewPdf(file) {
+            if (browserState.pdfObjectUrl) {
+                URL.revokeObjectURL(browserState.pdfObjectUrl);
+            }
+
+            browserState.pdfObjectUrl = URL.createObjectURL(file);
+            previewFrame.src = browserState.pdfObjectUrl;
+            previewFrame.classList.remove('hidden');
+            previewImg.classList.add('hidden');
+            previewPlaceholder.classList.add('hidden');
+        }
+
+        function readFileAsDataUrl(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error('Не вдалося прочитати файл'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function handlePdfFile(file) {
+            if (!file) {
+                return;
+            }
+
+            btnPdf.classList.add('opacity-70', 'pointer-events-none');
+
+            try {
+                const fileData = await readFileAsDataUrl(file);
+                const res = await getApi().uploadPdf(file.name, fileData);
+                console.log('[JS] uploadPdf response:', res);
+
+                if (res && res.status === 'success') {
+                    pdfStatus.classList.add('hidden');
+                    pdfSuccess.classList.remove('hidden');
+                    pdfFilename.textContent = res.name || file.name;
+                    btnPdf.classList.add('border-blue-500/30', 'bg-blue-500/5');
+                    pdfIconWrapper.classList.replace('bg-zinc-800/50', 'bg-blue-500/20');
+                    document.getElementById('pdf-icon').classList.replace('text-zinc-400', 'text-blue-400');
+
+                    if (res.image) {
+                        showPreviewImage(res.image);
+                    } else {
+                        showPreviewPdf(file);
+                    }
+                } else if (res && res.status === 'error') {
+                    resetPreview();
+                    alert('❌ Помилка: ' + res.message);
+                }
+            } catch (err) {
+                console.error('[JS] uploadPdf exception:', err);
+                resetPreview();
+                alert('❌ Помилка: ' + err.toString());
+            } finally {
+                btnPdf.classList.remove('opacity-70', 'pointer-events-none');
+                pdfInput.value = '';
+            }
+        }
+
+        async function handleNativePdfSelection() {
+            btnPdf.classList.add('opacity-70', 'pointer-events-none');
+
+            try {
+                const res = await getApi().selectPdf();
+                console.log('[JS] selectPdf response:', res);
+
+                if (res && res.status === 'success') {
+                    pdfStatus.classList.add('hidden');
+                    pdfSuccess.classList.remove('hidden');
+                    pdfFilename.textContent = res.name;
+                    btnPdf.classList.add('border-blue-500/30', 'bg-blue-500/5');
+                    pdfIconWrapper.classList.replace('bg-zinc-800/50', 'bg-blue-500/20');
+                    document.getElementById('pdf-icon').classList.replace('text-zinc-400', 'text-blue-400');
+
+                    if (res.image) {
+                        showPreviewImage(res.image);
+                    }
+                } else if (res && res.status === 'error') {
+                    resetPreview();
+                    alert('❌ Помилка: ' + res.message);
+                }
+            } catch (err) {
+                console.error('[JS] selectPdf exception:', err);
+                resetPreview();
+                alert('❌ Помилка: ' + err.toString());
+            } finally {
+                btnPdf.classList.remove('opacity-70', 'pointer-events-none');
+            }
+        }
+
+        btnPdf.addEventListener('click', () => {
+            if (isDesktopApp()) {
+                handleNativePdfSelection();
+                return;
+            }
+
+            pdfInput.click();
+        });
+        pdfInput.addEventListener('change', (event) => handlePdfFile(event.target.files[0]));
+
+        const btnExcel = document.getElementById('btn-excel');
+        const excelInput = document.getElementById('excel-input');
+        const excelStatus = document.getElementById('excel-status');
+        const excelSuccess = document.getElementById('excel-success');
+        const excelCount = document.getElementById('excel-count');
+        const excelIconWrapper = document.getElementById('excel-icon-wrapper');
+
+        async function handleExcelFile(file) {
+            if (!file) {
+                return;
+            }
+
+            btnExcel.classList.add('opacity-70', 'pointer-events-none');
+
+            try {
+                const fileData = await readFileAsDataUrl(file);
+                const res = await getApi().uploadExcel(file.name, fileData);
+                console.log('[JS] uploadExcel response:', res);
+
+                if (res && res.status === 'success') {
+                    excelStatus.classList.add('hidden');
+                    excelSuccess.classList.remove('hidden');
+                    excelCount.textContent = `Файл: ${res.file || file.name}${typeof res.count === 'number' ? ` • Записів: ${res.count}` : ''}`;
+                    btnExcel.classList.add('border-emerald-500/30', 'bg-emerald-500/5');
+                    excelIconWrapper.classList.replace('bg-zinc-800/50', 'bg-emerald-500/20');
+                    document.getElementById('excel-icon').classList.replace('text-zinc-400', 'text-emerald-400');
+                    if (res.first_name) textEl.textContent = res.first_name;
+                } else if (res && res.status === 'error') {
+                    alert('❌ Помилка: ' + res.message);
+                }
+            } catch (err) {
+                console.error('[JS] uploadExcel exception:', err);
+                alert('❌ Помилка: ' + err.toString());
+            } finally {
+                btnExcel.classList.remove('opacity-70', 'pointer-events-none');
+                excelInput.value = '';
+            }
+        }
+
+        async function handleNativeExcelSelection() {
+            btnExcel.classList.add('opacity-70', 'pointer-events-none');
+
+            try {
+                const res = await getApi().selectExcel();
+                console.log('[JS] selectExcel response:', res);
+
+                if (res && res.status === 'success') {
+                    excelStatus.classList.add('hidden');
+                    excelSuccess.classList.remove('hidden');
+                    excelCount.textContent = `Файл: ${res.file}${typeof res.count === 'number' ? ` • Записів: ${res.count}` : ''}`;
+                    btnExcel.classList.add('border-emerald-500/30', 'bg-emerald-500/5');
+                    excelIconWrapper.classList.replace('bg-zinc-800/50', 'bg-emerald-500/20');
+                    document.getElementById('excel-icon').classList.replace('text-zinc-400', 'text-emerald-400');
+                    if (res.first_name) textEl.textContent = res.first_name;
+                } else if (res && res.status === 'error') {
+                    alert('❌ Помилка: ' + res.message);
+                }
+            } catch (err) {
+                console.error('[JS] selectExcel exception:', err);
+                alert('❌ Помилка: ' + err.toString());
+            } finally {
+                btnExcel.classList.remove('opacity-70', 'pointer-events-none');
+            }
+        }
+
+        btnExcel.addEventListener('click', () => {
+            if (isDesktopApp()) {
+                handleNativeExcelSelection();
+                return;
+            }
+
+            excelInput.click();
+        });
+        excelInput.addEventListener('change', (event) => handleExcelFile(event.target.files[0]));
+
+        function wireDropzone(element, acceptedPrefix, handler, activeClasses) {
+            ['dragenter', 'dragover'].forEach((eventName) => {
+                element.addEventListener(eventName, (event) => {
+                    event.preventDefault();
+                    element.classList.add(...activeClasses);
+                });
+            });
+
+            ['dragleave', 'dragend', 'drop'].forEach((eventName) => {
+                element.addEventListener(eventName, (event) => {
+                    event.preventDefault();
+                    element.classList.remove(...activeClasses);
+                });
+            });
+
+            element.addEventListener('drop', (event) => {
+                const [file] = event.dataTransfer.files;
+                if (!file) {
+                    return;
+                }
+
+                if (!file.type.startsWith(acceptedPrefix) && !file.name.toLowerCase().includes(acceptedPrefix.replace('/', '.'))) {
+                    alert('❌ Непідтримуваний формат файлу');
+                    return;
+                }
+
+                handler(file);
+            });
+        }
+
+        wireDropzone(btnPdf, 'application/pdf', handlePdfFile, ['border-blue-500/50', 'bg-blue-500/10']);
+        wireDropzone(btnExcel, 'application/', handleExcelFile, ['border-emerald-500/50', 'bg-emerald-500/10']);
+
+        // 2. Font Size Slider
+        const slider = document.getElementById('font-size-slider');
+        const sliderLabel = document.getElementById('font-size-label');
+        const textEl = document.getElementById('draggable-text');
+
+        slider.addEventListener('input', (e) => {
+            const val = e.target.value;
+            sliderLabel.textContent = val;
+            textEl.style.fontSize = `${val}rem`;
+        });
+
+        // 2b. Font Family
+        const FONT_CSS_MAP = {
+            'times-bold':   { family: "'Times New Roman', Times, serif", weight: 'bold' },
+            'times':        { family: "'Times New Roman', Times, serif", weight: 'normal' },
+            'arial':        { family: 'Arial, Helvetica, sans-serif', weight: 'normal' },
+            'arial-bold':   { family: 'Arial, Helvetica, sans-serif', weight: 'bold' },
+            'calibri':      { family: 'Calibri, Candara, sans-serif', weight: 'normal' },
+            'calibri-bold': { family: 'Calibri, Candara, sans-serif', weight: 'bold' },
+            'georgia':      { family: 'Georgia, serif', weight: 'normal' },
+            'georgia-bold': { family: 'Georgia, serif', weight: 'bold' },
+        };
+        const fontSelect = document.getElementById('font-select');
+        fontSelect.addEventListener('change', () => {
+            const css = FONT_CSS_MAP[fontSelect.value] || FONT_CSS_MAP['times-bold'];
+            textEl.style.fontFamily = css.family;
+            textEl.style.fontWeight = css.weight;
+        });
+
+        // 2c. Color Picker + HEX input
+        const colorPicker = document.getElementById('color-picker');
+        const colorHex    = document.getElementById('color-hex');
+        const colorSwatch = document.getElementById('color-swatch');
+
+        function applyColor(hex) {
+            textEl.style.color = hex;
+            colorSwatch.style.background = hex;
+        }
+        colorPicker.addEventListener('input', () => {
+            colorHex.value = colorPicker.value.toUpperCase();
+            applyColor(colorPicker.value);
+        });
+        colorHex.addEventListener('input', () => {
+            const raw = colorHex.value.trim();
+            const hex = raw.startsWith('#') ? raw : '#' + raw;
+            if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+                colorPicker.value = hex;
+                applyColor(hex);
+            }
+        });
+        colorHex.addEventListener('blur', () => {
+            const raw = colorHex.value.trim();
+            const hex = raw.startsWith('#') ? raw : '#' + raw;
+            if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+                colorHex.value = hex.toUpperCase();
+            } else {
+                colorHex.value = colorPicker.value.toUpperCase();
+            }
+        });
+
+        // 2d. Center buttons
+        document.getElementById('btn-center-h').addEventListener('click', () => {
+            textEl.style.left = '50%';
+            updateGuides(50, parseFloat(textEl.style.top) || 50);
+        });
+        document.getElementById('btn-center-v').addEventListener('click', () => {
+            textEl.style.top = '50%';
+            updateGuides(parseFloat(textEl.style.left) || 50, 50);
+        });
+
+        // 3. Draggable Logic
+        const canvasEl = document.getElementById('preview-canvas');
+        const guideX = document.getElementById('guide-x');
+        const guideY = document.getElementById('guide-y');
+        
+        let isDragging = false;
+        let initialMouseX, initialMouseY;
+        let initialElementLeft, initialElementTop;
+
+        textEl.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            initialMouseX = e.clientX;
+            initialMouseY = e.clientY;
+            
+            // Get current percentage or fallback to 50
+            initialElementLeft = parseFloat(textEl.style.left) || 50;
+            initialElementTop = parseFloat(textEl.style.top) || 50;
+            
+            textEl.classList.add('cursor-grabbing');
+            textEl.classList.remove('cursor-move', 'hover:border-zinc-500', 'hover:bg-zinc-800/50');
+            textEl.classList.add('border-zinc-500', 'bg-zinc-800/50');
+            
+            guideX.classList.remove('hidden');
+            guideY.classList.remove('hidden');
+            updateGuides(initialElementLeft, initialElementTop);
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            
+            const dx = e.clientX - initialMouseX;
+            const dy = e.clientY - initialMouseY;
+            
+            const rect = canvasEl.getBoundingClientRect();
+            
+            // Calculate new percentage position
+            let newLeft = initialElementLeft + ((dx / rect.width) * 100);
+            let newTop = initialElementTop + ((dy / rect.height) * 100);
+            
+            // Constrain within 0-100% bounds
+            newLeft = Math.max(0, Math.min(100, newLeft));
+            newTop = Math.max(0, Math.min(100, newTop));
+            
+            textEl.style.left = `${newLeft}%`;
+            textEl.style.top = `${newTop}%`;
+            
+            updateGuides(newLeft, newTop);
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            textEl.classList.remove('cursor-grabbing', 'border-zinc-500', 'bg-zinc-800/50');
+            textEl.classList.add('cursor-move', 'hover:border-zinc-500', 'hover:bg-zinc-800/50');
+            
+            guideX.classList.add('hidden');
+            guideY.classList.add('hidden');
+        });
+
+        function updateGuides(xPercent, yPercent) {
+            guideX.style.top = `${yPercent}%`;
+            guideY.style.left = `${xPercent}%`;
+        }
+
+        // 4. Generate Button
+        const btnGenerate = document.getElementById('btn-generate');
+        btnGenerate.addEventListener('click', async () => {
+            const canvasRect = canvasEl.getBoundingClientRect();
+            const currentX = parseFloat(textEl.style.left) || 50;
+            const currentY = parseFloat(textEl.style.top) || 50;
+            // Передаємо частку: fontSize_px / canvasWidth_px — Python помножить на pdf_width
+            const fontSizePx = parseFloat(slider.value) * 16;
+            const fontSizeFraction = fontSizePx / canvasRect.width;
+
+            console.log(`[JS] Generate: X=${currentX.toFixed(2)}%, Y=${currentY.toFixed(2)}%, fontFraction=${fontSizeFraction.toFixed(4)}`);
+            
+            const originalContent = btnGenerate.innerHTML;
+            btnGenerate.innerHTML = `<iconify-icon icon="solar:spinner-linear" class="text-lg animate-spin"></iconify-icon> Обробка...`;
+            btnGenerate.disabled = true;
+
+            try {
+                const fontKey = fontSelect.value;
+            const color = colorHex.value.trim() || '#68313a';
+            const res = await getApi().generateCertificates(currentX.toFixed(2), currentY.toFixed(2), fontSizeFraction, fontKey, color);
+                console.log('[JS] generateCertificates response:', res);
+                
+                if (res && res.status === "success") {
+                    console.log('[JS] ✅ Успіх!');
+                    btnGenerate.innerHTML = `<iconify-icon icon="solar:check-circle-linear" class="text-lg text-emerald-600"></iconify-icon> Готово!`;
+                    alert("✅ " + (res.message || "Сертифікати успішно згенеровані!"));
+                } else if (res && res.status === "error") {
+                    console.error('[JS] ❌ Помилка генерації:', res.message);
+                    btnGenerate.innerHTML = `<iconify-icon icon="solar:close-circle-linear" class="text-lg text-red-500"></iconify-icon> Помилка`;
+                    alert("❌ Помилка: " + (res.message || "Невідома помилка"));
+                } else if (res && res.status === "cancelled") {
+                    console.log('[JS] Генерація скасована');
+                    btnGenerate.innerHTML = originalContent;
+                    btnGenerate.disabled = false;
+                    return;
+                }
+                
+                setTimeout(() => {
+                    btnGenerate.innerHTML = originalContent;
+                    btnGenerate.disabled = false;
+                }, 2500);
+            } catch (err) {
+                console.error('[JS] Виключення generateCertificates:', err);
+                btnGenerate.innerHTML = `<iconify-icon icon="solar:close-circle-linear" class="text-lg text-red-500"></iconify-icon> Помилка`;
+                alert("❌ Помилка: " + err.toString());
+                
+                setTimeout(() => {
+                    btnGenerate.innerHTML = originalContent;
+                    btnGenerate.disabled = false;
+                }, 2500);
+            }
+        });
+
+    </script>
+</body>
+</html>
