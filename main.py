@@ -1,4 +1,5 @@
 import webview
+import openpyxl
 import pandas as pd
 import fitz  # PyMuPDF для створення картинки прев'ю
 import io
@@ -113,17 +114,17 @@ class CertificateAPI:
     def _load_excel_names(self, excel_path):
         _, ext = os.path.splitext(excel_path)
         if ext.lower() == '.xls':
-            # Старий формат: pandas + xlrd
             df = pd.read_excel(excel_path, engine='xlrd')
             names = df.iloc[:, 0].dropna().astype(str).str.strip().tolist()
             names = [n for n in names if n]
         else:
-            # .xlsx: читаємо напряму через openpyxl без pandas
-            import openpyxl
+            # Читаємо .xlsx напряму через openpyxl (модуль-рівнь імпорт — PyInstaller бачить)
             wb = openpyxl.load_workbook(excel_path, read_only=True, data_only=True)
-            ws = wb.active
+            # Пробуємо активний аркуш, інакше беремо перший
+            ws = wb.active or wb.worksheets[0]
             names = []
-            for row in ws.iter_rows(values_only=True):
+            # Починаємо з 2-го рядку (як pandas з header=0) — перший рядок завжди заголовок
+            for row in ws.iter_rows(min_row=2, values_only=True):
                 if not row:
                     continue
                 cell = row[0]
@@ -132,17 +133,24 @@ class CertificateAPI:
                 val = str(cell).strip()
                 if val:
                     names.append(val)
+            # Якщо активний аркуш порожній, перебираємо інші аркуші
+            if not names:
+                for sheet in wb.worksheets:
+                    for row in sheet.iter_rows(min_row=2, values_only=True):
+                        if not row:
+                            continue
+                        cell = row[0]
+                        if cell is None:
+                            continue
+                        val = str(cell).strip()
+                        if val:
+                            names.append(val)
+                    if names:
+                        break
             wb.close()
-            # Якщо перший рядок — заголовок (не містить пробілу і короткий), пропускаємо
-            if names and len(names) > 1:
-                first = names[0]
-                is_header = (' ' not in first and len(first) < 30)
-                if is_header:
-                    names = names[1:]
 
-        print(f"[DEBUG] Excel прочитаний (ext={ext}), знайдено рядків: {len(names)}")
+        print(f"[DEBUG] Excel прочитаний (ext={ext}), знайдено імен: {len(names)}")
         self.names_list = names
-        print(f"[DEBUG] Знайдено імен: {len(self.names_list)}")
 
         return {
             "status": "success",
