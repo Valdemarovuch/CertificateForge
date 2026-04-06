@@ -112,19 +112,36 @@ class CertificateAPI:
 
     def _load_excel_names(self, excel_path):
         _, ext = os.path.splitext(excel_path)
-        engine = 'xlrd' if ext.lower() == '.xls' else 'openpyxl'
-        df = pd.read_excel(excel_path, engine=engine)
-        print(f"[DEBUG] Excel прочитаний (engine={engine}), колонок: {len(df.columns)}, рядків: {len(df)}")
-        # Шукаємо першу колонку, що має хоча б одне непусте значення
-        names_col = None
-        for i in range(len(df.columns)):
-            col = df.iloc[:, i].dropna().astype(str).str.strip()
-            col = col[col != '']
-            if len(col) > 0:
-                names_col = col.tolist()
-                print(f"[DEBUG] Знайдено імена у колонці {i}: {len(names_col)} записів")
-                break
-        self.names_list = names_col if names_col else []
+        if ext.lower() == '.xls':
+            # Старий формат: pandas + xlrd
+            df = pd.read_excel(excel_path, engine='xlrd')
+            names = df.iloc[:, 0].dropna().astype(str).str.strip().tolist()
+            names = [n for n in names if n]
+        else:
+            # .xlsx: читаємо напряму через openpyxl без pandas
+            import openpyxl
+            wb = openpyxl.load_workbook(excel_path, read_only=True, data_only=True)
+            ws = wb.active
+            names = []
+            for row in ws.iter_rows(values_only=True):
+                if not row:
+                    continue
+                cell = row[0]
+                if cell is None:
+                    continue
+                val = str(cell).strip()
+                if val:
+                    names.append(val)
+            wb.close()
+            # Якщо перший рядок — заголовок (не містить пробілу і короткий), пропускаємо
+            if names and len(names) > 1:
+                first = names[0]
+                is_header = (' ' not in first and len(first) < 30)
+                if is_header:
+                    names = names[1:]
+
+        print(f"[DEBUG] Excel прочитаний (ext={ext}), знайдено рядків: {len(names)}")
+        self.names_list = names
         print(f"[DEBUG] Знайдено імен: {len(self.names_list)}")
 
         return {

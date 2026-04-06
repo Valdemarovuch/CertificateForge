@@ -1,20 +1,19 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_submodules, collect_data_files
+from PyInstaller.utils.hooks import collect_submodules, collect_data_files, collect_all
 
 block_cipher = None
 
-openpyxl_hidden = collect_submodules('openpyxl')
-openpyxl_datas = collect_data_files('openpyxl')
+openpyxl_all = collect_all('openpyxl')
 
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=[],
+    binaries=openpyxl_all[1],
     datas=[
         ('index.html', '.'),
         ('assets', 'assets'),
-    ] + openpyxl_datas,
-    hiddenimports=openpyxl_hidden + [
+    ] + openpyxl_all[0],
+    hiddenimports=openpyxl_all[2] + [
         'openpyxl',
         'openpyxl.cell._writer',
         'openpyxl.styles.stylesheet',
