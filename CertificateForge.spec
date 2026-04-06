@@ -4,6 +4,7 @@ from PyInstaller.utils.hooks import collect_submodules, collect_data_files
 block_cipher = None
 
 openpyxl_hidden = collect_submodules('openpyxl')
+openpyxl_datas = collect_data_files('openpyxl')
 
 a = Analysis(
     ['main.py'],
@@ -12,13 +13,14 @@ a = Analysis(
     datas=[
         ('index.html', '.'),
         ('assets', 'assets'),
-    ],
+    ] + openpyxl_datas,
     hiddenimports=openpyxl_hidden + [
         'openpyxl',
         'openpyxl.cell._writer',
         'openpyxl.styles.stylesheet',
         'openpyxl.drawing.image',
         'et_xmlfile',
+        'xlrd',
         'reportlab.graphics',
         'reportlab.pdfbase._fontdata_enc_winansi',
         'reportlab.pdfbase._fontdata_enc_macroman',

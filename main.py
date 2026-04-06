@@ -111,9 +111,20 @@ class CertificateAPI:
         }
 
     def _load_excel_names(self, excel_path):
-        df = pd.read_excel(excel_path)
-        print(f"[DEBUG] Excel прочитаний, колонок: {len(df.columns)}, рядків: {len(df)}")
-        self.names_list = df.iloc[:, 0].dropna().astype(str).tolist()
+        _, ext = os.path.splitext(excel_path)
+        engine = 'xlrd' if ext.lower() == '.xls' else 'openpyxl'
+        df = pd.read_excel(excel_path, engine=engine)
+        print(f"[DEBUG] Excel прочитаний (engine={engine}), колонок: {len(df.columns)}, рядків: {len(df)}")
+        # Шукаємо першу колонку, що має хоча б одне непусте значення
+        names_col = None
+        for i in range(len(df.columns)):
+            col = df.iloc[:, i].dropna().astype(str).str.strip()
+            col = col[col != '']
+            if len(col) > 0:
+                names_col = col.tolist()
+                print(f"[DEBUG] Знайдено імена у колонці {i}: {len(names_col)} записів")
+                break
+        self.names_list = names_col if names_col else []
         print(f"[DEBUG] Знайдено імен: {len(self.names_list)}")
 
         return {
