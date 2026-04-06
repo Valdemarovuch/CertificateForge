@@ -390,6 +390,12 @@ def resource_path(relative_path):
 
 
 if __name__ == '__main__':
+    # У .exe (console=False) stdout/stderr можуть мати charmap-кодування.
+    # Перенаправляємо їх щоб print() з Unicode не викидав винятки.
+    if hasattr(sys, '_MEIPASS'):
+        sys.stdout = open(os.devnull, 'w', encoding='utf-8')
+        sys.stderr = open(os.devnull, 'w', encoding='utf-8')
+
     print("[START] Запуск Генератора Сертифікатів...")
     api = CertificateAPI()
     
