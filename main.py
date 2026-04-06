@@ -4,9 +4,11 @@ import fitz  # PyMuPDF для створення картинки прев'ю
 import io
 import base64
 import os
+import re
 import sys
 import tempfile
 import subprocess
+import threading
 from pypdf import PdfReader, PdfWriter
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -89,6 +91,7 @@ class CertificateAPI:
         self.names_list = []
         self._window = None
         self.upload_dir = tempfile.mkdtemp(prefix="autocertificate_")
+        self._registered_fonts = set()
 
     def set_window(self, window):
         self._window = window
@@ -96,7 +99,7 @@ class CertificateAPI:
     def _build_pdf_preview_response(self, pdf_path):
         doc = fitz.open(pdf_path)
         page = doc.load_page(0)
-        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+        pix = page.get_pixmap(matrix=fitz.Matrix(1.5, 1.5))
         img_data = pix.tobytes("png")
         base64_img = base64.b64encode(img_data).decode('utf-8')
         doc.close()
@@ -191,11 +194,14 @@ class CertificateAPI:
     def _resolve_font(self, font_key):
         """Знаходить і реєструє шрифт за ключем, повертає зареєстровану назву."""
         font_info = FONT_MAP.get(font_key, FONT_MAP['times-bold'])
+        reg_name = font_info['reg_name']
+        if reg_name in self._registered_fonts:
+            return reg_name
         for path in font_info['paths']:
             if os.path.exists(path):
                 try:
-                    reg_name = font_info['reg_name']
                     pdfmetrics.registerFont(TTFont(reg_name, path))
+                    self._registered_fonts.add(reg_name)
                     print(f"[DEBUG] Шрифт зареєстрований: {reg_name} ({path})")
                     return reg_name
                 except Exception as e:
@@ -267,7 +273,7 @@ class CertificateAPI:
             return {"status": "error", "message": str(e)}
 
     def generateCertificates(self, x, y, font_size_fraction, font_key='times-bold', color='#68313a'):
-        """Генерує сертифікати на основі отриманих координат."""
+        """Генерує сертифікати асинхронно; повертає статус 'started' і надсилає прогрес через JS."""
         try:
             print(f"[DEBUG] generateCertificates: x={x}, y={y}, font_size_fraction={font_size_fraction}, font_key={font_key}, color={color}")
             if not self.pdf_path or not self.names_list:
@@ -279,100 +285,101 @@ class CertificateAPI:
             if not output_dir:
                 print(f"[DEBUG] Папка для збереження не обрана")
                 return {"status": "cancelled"}
-            
+
             output_dir = output_dir[0]
             print(f"[DEBUG] Папка для збереження: {output_dir}")
 
-            try:
-                # Конвертуємо параметри
-                x = float(x)
-                y = float(y)
-                font_size_fraction = float(font_size_fraction)
+            total = len(self.names_list)
+            thread = threading.Thread(
+                target=self._generate_certificates_thread,
+                args=(x, y, font_size_fraction, font_key, color, output_dir),
+                daemon=True,
+            )
+            thread.start()
+            return {"status": "started", "total": total}
 
-                # Читаємо оригінальний шаблон
-                template = PdfReader(self.pdf_path)
-                template_page = template.pages[0]
-
-                # Отримуємо реальні розміри PDF
-                pdf_width = float(template_page.mediabox.width)
-                pdf_height = float(template_page.mediabox.height)
-
-                print(f"[DEBUG] Розміри PDF: {pdf_width}x{pdf_height}")
-
-                # font_size_fraction = fontSize_px / canvasWidth_px
-                # В PDF: font_size_pt = fraction * pdf_width — зберігає ту саму частку ширини сторінки
-                font_size = font_size_fraction * pdf_width
-                print(f"[DEBUG] Параметри конвертовані: x={x}, y={y}, font_size={font_size:.2f}pt")
-
-                font_name = self._resolve_font(font_key)
-
-                # Validate color
-                import re
-                if not re.match(r'^#[0-9a-fA-F]{6}$', str(color)):
-                    color = '#68313a'
-
-                # Конвертуємо відсотки в PDF пункти
-                real_x = (x / 100.0) * pdf_width
-                # drawCentredString малює від baseline, а превью центрує по центру тексту.
-                # Компенсуємо: зміщуємо baseline вниз на ~35% розміру шрифту,
-                # щоб візуальний центр тексту в PDF збігався з позицією в превью.
-                real_y = (1.0 - y / 100.0) * pdf_height - font_size * 0.35
-                
-                print(f"[DEBUG] Real координати: x={real_x}, y={real_y}")
-
-                count = 0
-                for name in self.names_list:
-                    try:
-                        packet = io.BytesIO()
-                        can = canvas.Canvas(packet, pagesize=(pdf_width, pdf_height))
-
-                        can.setFont(font_name, font_size)
-                        can.setFillColor(HexColor(color))
-                        # Малюємо текст по центру вказаної точки
-                        can.drawCentredString(real_x, real_y, name)
-                        can.save()
-
-                        packet.seek(0)
-                        text_pdf = PdfReader(packet)
-
-                        # Читаємо шаблон заново для кожного сертифіката,
-                        # щоб уникнути накопичення тексту на одній сторінці
-                        fresh_template = PdfReader(self.pdf_path)
-
-                        # Об'єднуємо шаблон з текстом
-                        output = PdfWriter()
-                        page = fresh_template.pages[0]
-                        page.merge_page(text_pdf.pages[0])
-                        output.add_page(page)
-
-                        # Зберігаємо
-                        safe_name = "".join([c for c in name if c.isalnum() or c in ' -']).strip()
-                        if not safe_name:
-                            safe_name = f"Certificate_{count}"
-                        save_path = os.path.join(output_dir, f"Certificate_{safe_name}.pdf")
-                        
-                        with open(save_path, "wb") as outputStream:
-                            output.write(outputStream)
-                        
-                        count += 1
-                        print(f"[DEBUG] Сертифікат {count}: {save_path}")
-                    except Exception as e:
-                        print(f"[ERROR] Помилка при обробці імені '{name}': {str(e)}")
-
-                msg = f"Успішно! Згенеровано {count} сертифікатів з {len(self.names_list)}"
-                print(f"[DEBUG] {msg}")
-                return {"status": "success", "message": msg}
-                
-            except Exception as e:
-                print(f"[ERROR] Помилка при генерації: {str(e)}")
-                import traceback
-                traceback.print_exc()
-                return {"status": "error", "message": f"Помилка при генерації: {str(e)}"}
         except Exception as e:
             print(f"[ERROR] generateCertificates помилка: {str(e)}")
             import traceback
             traceback.print_exc()
             return {"status": "error", "message": str(e)}
+
+    def _generate_certificates_thread(self, x, y, font_size_fraction, font_key, color, output_dir):
+        """Фоновий потік генерації сертифікатів."""
+        try:
+            x = float(x)
+            y = float(y)
+            font_size_fraction = float(font_size_fraction)
+
+            # Читаємо шаблон один раз у пам'ять
+            with open(self.pdf_path, "rb") as f:
+                template_bytes = f.read()
+
+            template_reader = PdfReader(io.BytesIO(template_bytes))
+            template_page = template_reader.pages[0]
+            pdf_width = float(template_page.mediabox.width)
+            pdf_height = float(template_page.mediabox.height)
+            print(f"[DEBUG] Розміри PDF: {pdf_width}x{pdf_height}")
+
+            font_size = font_size_fraction * pdf_width
+            font_name = self._resolve_font(font_key)
+
+            if not re.match(r'^#[0-9a-fA-F]{6}$', str(color)):
+                color = '#68313a'
+
+            real_x = (x / 100.0) * pdf_width
+            real_y = (1.0 - y / 100.0) * pdf_height - font_size * 0.35
+            print(f"[DEBUG] Real координати: x={real_x}, y={real_y}")
+
+            total = len(self.names_list)
+            count = 0
+            for name in self.names_list:
+                try:
+                    packet = io.BytesIO()
+                    can = canvas.Canvas(packet, pagesize=(pdf_width, pdf_height))
+                    can.setFont(font_name, font_size)
+                    can.setFillColor(HexColor(color))
+                    can.drawCentredString(real_x, real_y, name)
+                    can.save()
+
+                    packet.seek(0)
+                    text_pdf = PdfReader(packet)
+
+                    # Щоразу створюємо новий reader із кешованих байт — без читання диска
+                    fresh_template = PdfReader(io.BytesIO(template_bytes))
+                    output = PdfWriter()
+                    page = fresh_template.pages[0]
+                    page.merge_page(text_pdf.pages[0])
+                    output.add_page(page)
+
+                    safe_name = "".join([c for c in name if c.isalnum() or c in ' -']).strip()
+                    if not safe_name:
+                        safe_name = f"Certificate_{count}"
+                    save_path = os.path.join(output_dir, f"Certificate_{safe_name}.pdf")
+
+                    with open(save_path, "wb") as out_stream:
+                        output.write(out_stream)
+
+                    count += 1
+                    print(f"[DEBUG] Сертифікат {count}/{total}: {save_path}")
+                    self._window.evaluate_js(f"updateProgress({count}, {total})")
+                except Exception as e:
+                    print(f"[ERROR] Помилка при обробці імені '{name}': {str(e)}")
+
+            msg = f"Успішно! Згенеровано {count} сертифікатів з {total}"
+            print(f"[DEBUG] {msg}")
+            safe_msg = msg.replace("'", "\\'")
+            self._window.evaluate_js(
+                f"generationComplete({{\"status\":\"success\",\"message\":\"{safe_msg}\"}})"
+            )
+        except Exception as e:
+            print(f"[ERROR] _generate_certificates_thread: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            safe_err = str(e).replace("'", "\\'").replace('"', '\\"')
+            self._window.evaluate_js(
+                f"generationComplete({{\"status\":\"error\",\"message\":\"{safe_err}\"}})"
+            )
 
 def resource_path(relative_path):
     """Повертає правильний шлях як для запуску зі скрипту, так і з .exe (PyInstaller)."""

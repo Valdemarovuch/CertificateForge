@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Генератор сертифікатів</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <script src="assets/solar-icons.js"></script>
+    <script src="assets/tailwind.js"></script>
+    <script src="assets/iconify-icon.min.js"></script>
+    <script>if (window.Iconify && window.__solarIcons) Iconify.addCollection(window.__solarIcons);</script>
+    <link href="assets/inter.css" rel="stylesheet">
     <style>
         /* Custom Range Slider */
         input[type=range] {
@@ -163,6 +165,12 @@
                 </div>
 
                 <div class="flex-1"></div>
+
+                <!-- Progress Badge (hidden when idle) -->
+                <div id="gen-progress-badge" class="hidden items-center gap-2 text-xs text-zinc-400 bg-zinc-800/60 border border-zinc-700/50 px-3 py-1.5 rounded-lg shrink-0">
+                    <svg class="animate-spin w-3 h-3 text-zinc-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                    <span id="gen-progress-text">0 / 0</span>
+                </div>
 
                 <!-- Action Button -->
                 <button id="btn-generate" class="group relative px-5 py-2.5 bg-zinc-100 text-zinc-900 hover:bg-white rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.05)] hover:shadow-[0_0_25px_rgba(255,255,255,0.1)] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 overflow-hidden shrink-0">
@@ -614,6 +622,31 @@
 
         // 4. Generate Button
         const btnGenerate = document.getElementById('btn-generate');
+        const genProgressBadge = document.getElementById('gen-progress-badge');
+        const genProgressText = document.getElementById('gen-progress-text');
+
+        let _generateOriginalContent = '';
+
+        window.updateProgress = function(count, total) {
+            genProgressText.textContent = `${count} / ${total}`;
+        };
+
+        window.generationComplete = function(res) {
+            genProgressBadge.classList.add('hidden');
+            genProgressBadge.classList.remove('flex');
+            if (res && res.status === 'success') {
+                btnGenerate.innerHTML = `<iconify-icon icon="solar:check-circle-linear" class="text-lg text-emerald-600"></iconify-icon> Готово!`;
+                alert('\u2705 ' + (res.message || 'Сертифікати успішно згенеровані!'));
+            } else {
+                btnGenerate.innerHTML = `<iconify-icon icon="solar:close-circle-linear" class="text-lg text-red-500"></iconify-icon> Помилка`;
+                alert('\u274C Помилка: ' + (res && res.message ? res.message : 'Невідома помилка'));
+            }
+            setTimeout(() => {
+                btnGenerate.innerHTML = _generateOriginalContent;
+                btnGenerate.disabled = false;
+            }, 2500);
+        };
+
         btnGenerate.addEventListener('click', async () => {
             const canvasRect = canvasEl.getBoundingClientRect();
             const currentX = parseFloat(textEl.style.left) || 50;
@@ -624,7 +657,7 @@
 
             console.log(`[JS] Generate: X=${currentX.toFixed(2)}%, Y=${currentY.toFixed(2)}%, fontFraction=${fontSizeFraction.toFixed(4)}`);
             
-            const originalContent = btnGenerate.innerHTML;
+            _generateOriginalContent = btnGenerate.innerHTML;
             btnGenerate.innerHTML = `<iconify-icon icon="solar:spinner-linear" class="text-lg animate-spin"></iconify-icon> Обробка...`;
             btnGenerate.disabled = true;
 
@@ -634,34 +667,32 @@
             const res = await getApi().generateCertificates(currentX.toFixed(2), currentY.toFixed(2), fontSizeFraction, fontKey, color);
                 console.log('[JS] generateCertificates response:', res);
                 
-                if (res && res.status === "success") {
-                    console.log('[JS] ✅ Успіх!');
+                if (res && res.status === 'started') {
+                    // Async mode: show progress badge, wait for generationComplete() callback
+                    genProgressText.textContent = `0 / ${res.total || '?'}`;
+                    genProgressBadge.classList.remove('hidden');
+                    genProgressBadge.classList.add('flex');
+                    // button stays disabled; generationComplete() re-enables it
+                } else if (res && res.status === 'success') {
+                    console.log('[JS] \u2705 Успіх!');
                     btnGenerate.innerHTML = `<iconify-icon icon="solar:check-circle-linear" class="text-lg text-emerald-600"></iconify-icon> Готово!`;
-                    alert("✅ " + (res.message || "Сертифікати успішно згенеровані!"));
-                } else if (res && res.status === "error") {
-                    console.error('[JS] ❌ Помилка генерації:', res.message);
+                    alert('\u2705 ' + (res.message || 'Сертифікати успішно згенеровані!'));
+                    setTimeout(() => { btnGenerate.innerHTML = _generateOriginalContent; btnGenerate.disabled = false; }, 2500);
+                } else if (res && res.status === 'error') {
+                    console.error('[JS] \u274C Помилка генерації:', res.message);
                     btnGenerate.innerHTML = `<iconify-icon icon="solar:close-circle-linear" class="text-lg text-red-500"></iconify-icon> Помилка`;
-                    alert("❌ Помилка: " + (res.message || "Невідома помилка"));
-                } else if (res && res.status === "cancelled") {
+                    alert('\u274C Помилка: ' + (res.message || 'Невідома помилка'));
+                    setTimeout(() => { btnGenerate.innerHTML = _generateOriginalContent; btnGenerate.disabled = false; }, 2500);
+                } else if (res && res.status === 'cancelled') {
                     console.log('[JS] Генерація скасована');
-                    btnGenerate.innerHTML = originalContent;
+                    btnGenerate.innerHTML = _generateOriginalContent;
                     btnGenerate.disabled = false;
-                    return;
                 }
-                
-                setTimeout(() => {
-                    btnGenerate.innerHTML = originalContent;
-                    btnGenerate.disabled = false;
-                }, 2500);
             } catch (err) {
                 console.error('[JS] Виключення generateCertificates:', err);
                 btnGenerate.innerHTML = `<iconify-icon icon="solar:close-circle-linear" class="text-lg text-red-500"></iconify-icon> Помилка`;
-                alert("❌ Помилка: " + err.toString());
-                
-                setTimeout(() => {
-                    btnGenerate.innerHTML = originalContent;
-                    btnGenerate.disabled = false;
-                }, 2500);
+                alert('\u274C Помилка: ' + err.toString());
+                setTimeout(() => { btnGenerate.innerHTML = _generateOriginalContent; btnGenerate.disabled = false; }, 2500);
             }
         });
 
