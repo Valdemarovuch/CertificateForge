@@ -1,8 +1,6 @@
 import webview
 import openpyxl
 import pandas as pd
-import zipfile
-import xml.etree.ElementTree as ET
 import fitz  # PyMuPDF для створення картинки прев'ю
 import io
 import base64
@@ -113,66 +111,11 @@ class CertificateAPI:
             "image": f"data:image/png;base64,{base64_img}"
         }
 
-    def _read_xlsx_stdlib(self, excel_path):
-        """Читає .xlsx через zipfile + ElementTree (Python stdlib).
-        Гарантовано працює в .exe — не залежить від openpyxl."""
-        NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'
-        with zipfile.ZipFile(excel_path, 'r') as zf:
-            namelist = zf.namelist()
-            # Shared strings (рядкові значення клітинок)
-            shared_strings = []
-            if 'xl/sharedStrings.xml' in namelist:
-                with zf.open('xl/sharedStrings.xml') as f:
-                    ss_root = ET.parse(f).getroot()
-                for si in ss_root.findall(f'{{{NS}}}si'):
-                    shared_strings.append(''.join(t.text or '' for t in si.iter(f'{{{NS}}}t')))
-            # Перший аркуш
-            sheet_path = next(
-                (n for n in sorted(namelist)
-                 if n.startswith('xl/worksheets/sheet') and n.endswith('.xml')),
-                None
-            )
-            if not sheet_path:
-                return []
-            with zf.open(sheet_path) as f:
-                ws_root = ET.parse(f).getroot()
-        names = []
-        for row_el in ws_root.iter(f'{{{NS}}}row'):
-            if int(row_el.get('r', 1)) == 1:  # пропускаємо заголовок
-                continue
-            cells = row_el.findall(f'{{{NS}}}c')
-            if not cells:
-                continue
-            first = cells[0]
-            v_el = first.find(f'{{{NS}}}v')
-            if v_el is None or v_el.text is None:
-                continue
-            cell_type = first.get('t', '')
-            if cell_type == 's':
-                idx = int(v_el.text)
-                val = shared_strings[idx] if idx < len(shared_strings) else ''
-            elif cell_type == 'inlineStr':
-                is_el = first.find(f'{{{NS}}}is')
-                val = ''.join(t.text or '' for t in is_el.iter(f'{{{NS}}}t')) if is_el is not None else ''
-            else:
-                val = v_el.text
-            val = (val or '').strip()
-            if val:
-                names.append(val)
-        return names
-
     def _load_excel_names(self, excel_path):
-        _, ext = os.path.splitext(excel_path)
-        if ext.lower() == '.xls':
-            df = pd.read_excel(excel_path, engine='xlrd')
-            names = df.iloc[:, 0].dropna().astype(str).str.strip().tolist()
-            names = [n for n in names if n]
-        else:
-            # stdlib — не залежить від openpyxl у .exe
-            names = self._read_xlsx_stdlib(excel_path)
-
-        print(f"[DEBUG] Excel прочитаний (ext={ext}), знайдено імен: {len(names)}")
-        self.names_list = names
+        df = pd.read_excel(excel_path)
+        print(f"[DEBUG] Excel прочитаний, колонок: {len(df.columns)}, рядків: {len(df)}")
+        self.names_list = df.iloc[:, 0].dropna().astype(str).tolist()
+        print(f"[DEBUG] Знайдено імен: {len(self.names_list)}")
 
         return {
             "status": "success",

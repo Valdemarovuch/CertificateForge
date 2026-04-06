@@ -4,6 +4,8 @@ from PyInstaller.utils.hooks import collect_submodules, collect_data_files, coll
 block_cipher = None
 
 openpyxl_all = collect_all('openpyxl')
+webview_datas = collect_data_files('webview')
+webview_binaries = collect_data_files('webview', includes=['*.dll'])
 
 a = Analysis(
     ['main.py'],
@@ -12,8 +14,8 @@ a = Analysis(
     datas=[
         ('index.html', '.'),
         ('assets', 'assets'),
-    ] + openpyxl_all[0],
-    hiddenimports=openpyxl_all[2] + [
+    ] + openpyxl_all[0] + webview_datas,
+    hiddenimports=openpyxl_all[2] + collect_submodules('webview') + [
         'openpyxl',
         'openpyxl.cell._writer',
         'openpyxl.styles.stylesheet',
