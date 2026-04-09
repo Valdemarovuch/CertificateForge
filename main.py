@@ -56,6 +56,8 @@ FONT_MAP = {
     'calibri': {
         'paths': [
             'C:\\Windows\\Fonts\\calibri.ttf',
+            '/Library/Fonts/Calibri.ttf',
+            '/Library/Fonts/Microsoft/Calibri.ttf',
         ],
         'fallback': 'Helvetica',
         'reg_name': 'RegCalibri',
@@ -63,6 +65,8 @@ FONT_MAP = {
     'calibri-bold': {
         'paths': [
             'C:\\Windows\\Fonts\\calibrib.ttf',
+            '/Library/Fonts/Calibri Bold.ttf',
+            '/Library/Fonts/Microsoft/Calibri Bold.ttf',
         ],
         'fallback': 'Helvetica-Bold',
         'reg_name': 'RegCalibriBold',
@@ -392,7 +396,7 @@ def resource_path(relative_path):
 if __name__ == '__main__':
     # У .exe (console=False) stdout/stderr можуть мати charmap-кодування.
     # Перенаправляємо їх щоб print() з Unicode не викидав винятки.
-    if hasattr(sys, '_MEIPASS'):
+    if hasattr(sys, '_MEIPASS') and sys.platform == 'win32':
         sys.stdout = open(os.devnull, 'w', encoding='utf-8')
         sys.stderr = open(os.devnull, 'w', encoding='utf-8')
 

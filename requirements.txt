@@ -1,4 +1,4 @@
-pythonnet>=3.0.0
+pythonnet>=3.0.0; sys_platform == "win32"
 pywebview==5.3
 pandas
 openpyxl

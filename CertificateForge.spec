@@ -1,11 +1,22 @@
 # -*- mode: python ; coding: utf-8 -*-
+import sys
 from PyInstaller.utils.hooks import collect_submodules, collect_data_files, collect_all
 
 block_cipher = None
 
 openpyxl_all = collect_all('openpyxl')
 webview_datas = collect_data_files('webview')
-webview_binaries = collect_data_files('webview', includes=['*.dll'])
+
+# macOS: pywebview uses pyobjc (Cocoa/WKWebView)
+platform_hiddenimports = []
+if sys.platform == 'darwin':
+    platform_hiddenimports = [
+        'objc',
+        'Foundation',
+        'AppKit',
+        'WebKit',
+        'pyobjc',
+    ]
 
 a = Analysis(
     ['main.py'],
@@ -15,7 +26,7 @@ a = Analysis(
         ('index.html', '.'),
         ('assets', 'assets'),
     ] + openpyxl_all[0] + webview_datas,
-    hiddenimports=openpyxl_all[2] + collect_submodules('webview') + [
+    hiddenimports=openpyxl_all[2] + collect_submodules('webview') + platform_hiddenimports + [
         'openpyxl',
         'openpyxl.cell._writer',
         'openpyxl.styles.stylesheet',
@@ -98,3 +109,17 @@ exe = EXE(
     entitlements_file=None,
     icon=None,
 )
+
+# macOS: wrap the executable into a proper .app bundle
+if sys.platform == 'darwin':
+    app = BUNDLE(
+        exe,
+        name='CertificateForge.app',
+        icon=None,
+        bundle_identifier='com.certificateforge.app',
+        info_plist={
+            'NSHighResolutionCapable': True,
+            'NSRequiresAquaSystemAppearance': False,
+            'CFBundleShortVersionString': '1.0.0',
+        },
+    )
