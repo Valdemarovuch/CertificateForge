@@ -15,7 +15,6 @@ if sys.platform == 'darwin':
         'Foundation',
         'AppKit',
         'WebKit',
-        'pyobjc',
     ]
 
 a = Analysis(
@@ -84,36 +83,41 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    [],
-    name='CertificateForge',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    upx_exclude=[
-        'Microsoft.Web.WebView2.Core.dll',
-        'WebView2Loader.dll',
-    ],
-    runtime_tmpdir=None,
-    console=False,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-    icon=None,
-)
-
-# macOS: wrap the executable into a proper .app bundle
 if sys.platform == 'darwin':
-    app = BUNDLE(
+    # macOS: onedir mode — EXE without bundled data, then COLLECT + BUNDLE
+    exe = EXE(
+        pyz,
+        a.scripts,
+        [],
+        exclude_binaries=True,
+        name='CertificateForge',
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=True,
+        runtime_tmpdir=None,
+        console=False,
+        disable_windowed_traceback=False,
+        argv_emulation=False,
+        target_arch=None,
+        codesign_identity=None,
+        entitlements_file=None,
+        icon=None,
+    )
+
+    coll = COLLECT(
         exe,
+        a.binaries,
+        a.zipfiles,
+        a.datas,
+        strip=False,
+        upx=True,
+        upx_exclude=[],
+        name='CertificateForge',
+    )
+
+    app = BUNDLE(
+        coll,
         name='CertificateForge.app',
         icon=None,
         bundle_identifier='com.certificateforge.app',
@@ -122,4 +126,32 @@ if sys.platform == 'darwin':
             'NSRequiresAquaSystemAppearance': False,
             'CFBundleShortVersionString': '1.0.0',
         },
+    )
+
+else:
+    # Windows: onefile mode — everything packed into a single .exe
+    exe = EXE(
+        pyz,
+        a.scripts,
+        a.binaries,
+        a.zipfiles,
+        a.datas,
+        [],
+        name='CertificateForge',
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=True,
+        upx_exclude=[
+            'Microsoft.Web.WebView2.Core.dll',
+            'WebView2Loader.dll',
+        ],
+        runtime_tmpdir=None,
+        console=False,
+        disable_windowed_traceback=False,
+        argv_emulation=False,
+        target_arch=None,
+        codesign_identity=None,
+        entitlements_file=None,
+        icon=None,
     )
