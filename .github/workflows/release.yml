@@ -27,11 +27,17 @@ jobs:
       - name: Build EXE
         run: pyinstaller CertificateForge.spec --noconfirm
 
+      - name: Zip EXE
+        run: |
+          cd dist
+          Compress-Archive -Path CertificateForge.exe -DestinationPath CertificateForge-Windows.zip
+        shell: pwsh
+
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
-          path: dist/CertificateForge.exe
+          path: dist/CertificateForge-Windows.zip
 
   build-macos:
     name: Build macOS
@@ -87,5 +93,5 @@ jobs:
           prerelease: false
           generate_release_notes: true
           files: |
-            artifacts/windows/CertificateForge.exe
+            artifacts/windows/CertificateForge-Windows.zip
             artifacts/macos/CertificateForge-macOS.zip
